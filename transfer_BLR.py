@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Created on Tue May 16, 2023
+Created on Tue Sep 15, 2023
 
 @author: Antoine Bernas, PhD. 
 
@@ -11,14 +11,14 @@ This script has been adapted from transfer_normative_models_online.py (author: P
 The purpose of this script is to use the function normative.transfer in a automated way for the BLR model.
 usage:
 
-    python transfer_BLR_model.py your_test.csv your_adapt.csv
+    e.g. python transfer_BLR.py BLR_Smithnetworks_22k_45sites rsfMRI_BLR_transfer_session test_data/MINDset_ctrol_adaptdata2.csv test_data/MINDset_Testdata2.csv
 """
 
 
 """
 
 Transfer learning script for warped BLR model  
-The script prepares and preprocesses data
+The script prepares data, and run normative transfer functiion
 
 
 Parameters
@@ -28,10 +28,13 @@ root_dir : string
 model_name : string
     The normative model chosen by the user. Name contains algorithm, training sample, 
     n collection sites.
-data_type : string
-    The data type chosen by the user to do normative modelling with.
 session_id : string
-    Unique session ID chosen by the user (e.g. My_model_test_1)
+    Unique session ID chosen by the user (e.g. ThickAvg_transfer_session)
+adapt_data : csv file
+    Responses and covariance of all participants and IDPs of the adaptation data 
+test_data : csv file
+    Responses and covariance of all participants and IDPs of the test data 
+
 
 Returns
 -------
@@ -52,7 +55,12 @@ model_name= sys.argv[1]
 session_id = sys.argv[2] #
 adapt_file = sys.argv[3]
 test_file = sys.argv[4]
-#alg = model_name.split("_")[0] - Not used so far
+
+# Check algo = BLR
+if model_name.split("_")[0] != 'BLR':
+    print("Error: Expecting the Bayesian Linear Regression (BLR) input model algorithm. Make sure the model directory begins with 'BLR' before running this script!")
+    sys.exit(1)
+
 #email_address = sys.argv[6] - not used so far
 model_info_path = os.path.join(root_dir, model_name)
 model_path = os.path.join(root_dir, model_name, "Models/")
@@ -80,25 +88,21 @@ site_ids_te =  sorted(set(df_te['site'].to_list()))
 with open(os.path.join(model_info_path,'idp_ids.txt')) as f:
     idps = f.read().splitlines()
 
-# Site enumeration.
-# sites = np.unique(df_te['site'])
-# df_te['sitenum'] = np.nan
-# for i, s in enumerate(sites):
-#     df_te['sitenum'].loc[df_te['site'] == s] = int(i)
-# df_ad['sitenum'] = np.nan
-# for i, s in enumerate(sites):
-#     df_ad['sitenum'].loc[df_ad['site'] == s] = int(i)
+#Site enumeration.
+sites = np.unique(df_te['site'])
+df_te['sitenum'] = np.nan
+for i, s in enumerate(sites):
+    df_te.loc[df_te['site'] == s, 'sitenum'] = int(i)
+df_ad['sitenum'] = np.nan
+for i, s in enumerate(sites):
+    df_ad.loc[df_ad['site'] == s, 'sitenum'] = int(i)
 
-#breakpoint()
 
-# Extract a list of unique site ids for test and adaptation.
-site_names = 'site_ids.txt'
-with open(os.path.join(model_info_path, site_names)) as f:
-    site_ids_tr = f.read().splitlines()
-site_ids_te =  sorted(set(df_te['site'].to_list()))
-
-# which data columns do we wish to use as covariates? Note that 'sites' cov is added in the 'create_design_matrix' later on
-cols_cov = ['age','sex']
+# mandatory covariates covariates? Note that 'sites' cov is added in the 'create_design_matrix' later on
+mandatory_cov = 'mandatory_columns.txt'
+with open(os.path.join(model_info_path, mandatory_cov)) as f:
+    cols_cov = f.read().splitlines()
+cols_cov.remove('site')
 
 # limits for cubic B-spline basis 
 xmin = -5 
@@ -112,20 +116,9 @@ outlier_thresh = 7
 with open(os.path.join(model_info_path,'idp_ids.txt')) as f:
     idps = f.read().splitlines()
 
-#idp_ids = [ 'CortexVol', 'CerebralWhiteMatterVol', 'SubCortGrayVol']
-
-# for idp_num, idp in enumerate(idp_ids): 
-#     print('Running IDP', idp_num, idp, ':')
-#     idp_dir = os.path.join(session_path, idp)
-#     if not os.path.isdir(idp_dir):
-#         os.mkdir(idp_dir)
-#     breakpoint()
-
-
 
 # write response test file (with all idps in model path)
 y_te = df_te[df_te.columns.intersection(set(idps))].to_numpy(dtype=float)
-#y_te = df_ad[idp].to_numpy()
 
 # save the variables
 resp_file_te = os.path.join(session_path, 'resp_te.txt') 
@@ -179,22 +172,11 @@ else:
     sitenum_file_te = os.path.join(session_path, 'sitenum_te.txt')
     site_num_te = df_te['sitenum'].to_numpy(dtype=int)
     np.savetxt(sitenum_file_te, site_num_te)
-
-    # breakpoint()
-    breakpoint()
-    # yhat_te, s2_te, Z = ptk.normative.predict(covfile = cov_file_te,
-    #                             alg = 'blr', 
-    #                             respfile = resp_file_te, 
-    #                             model_path = model_path,
-    #                             inputsuffix = 'fit',
-    #                             outputsuffix = '_transfer',
-    #                             adaptrespfile = resp_file_ad,
-    #                             adaptcovfile = cov_file_ad,
-    #                             adaptvargroupfile = sitenum_file_ad,
-    #                             testvargroupfile = sitenum_file_te,
-    #                             output_path = output_path,
-    #                             savemodel = True)
     
+    #change directory to session path where results will be saved
+    os.chdir(session_path)
+
+    #run prediction/transfer
     yhat_te, s2_te, Z = ptk.normative.transfer(cov_file_ad, 
                             resp_file_ad,
                             testcov = cov_file_te,
@@ -208,6 +190,3 @@ else:
                             savemodel = True,
                             output_path = output_path)
     
-    
-    # test estimate model with test data
-    #yhat_te, s2_te, nm, Z, metrics_te = ptk.normative.estimate(cov_file_te, resp_file_te, alg = 'blr', cvfolds = 3, outputsuffix = '_mytest')
