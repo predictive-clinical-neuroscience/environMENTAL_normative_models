@@ -68,7 +68,7 @@ You can now run PCNtoolkit from the newly built container. See sections B and C 
    wget -O BLR_lifespan_57K_82sites.zip https://www.dropbox.com/sh/bd1j3rs6rg5dvuj/AACOWRU6MCfw6kWoYpjZFRoBa?dl=0
    ```
 
-   **Note:** Other models (e.g., ThickAvg and SurfArea) are available in the [Links_Pretrained_Models.md](https://github.com/predictive-clinical-neuroscience/environMENTAL_normative_models/Links_Pretrained_Models.md) file.
+   **Note:** Other models (e.g., ThickAvg and SurfArea) are available in the [Links_Pretrained_Models.md](https://github.com/predictive-clinical-neuroscience/environMENTAL_normative_models/blob/main/Links_Pretrained_Models.md) file.
 
 5) Unzip the files and remove the zip archive:
 
